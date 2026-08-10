@@ -32,10 +32,20 @@ def item_to_dict(item):
     }
 
 
+def safe_fetch(name, scraper):
+    """單一來源失敗(例如 tcpass 對雲端主機 IP 回傳 403)不該讓整個網站建置失敗,
+    失敗就記錄警告、回傳空清單,讓其他來源照常產出。"""
+    try:
+        return [item_to_dict(i) for i in scraper.fetch(pages=PAGES)]
+    except Exception as exc:
+        print(f"WARNING: {name} 爬取失敗,本次快照將略過此來源: {exc}", file=sys.stderr)
+        return []
+
+
 def main():
-    beitun = [item_to_dict(i) for i in BeitunOfficeScraper().fetch(pages=PAGES)]
-    econ = [item_to_dict(i) for i in GovSubsidyScraper().fetch(pages=PAGES)]
-    stores = [item_to_dict(i) for i in TcpassCouponScraper().fetch(pages=PAGES)]
+    beitun = safe_fetch("beitun_office", BeitunOfficeScraper())
+    econ = safe_fetch("econ_subsidy", GovSubsidyScraper())
+    stores = safe_fetch("tcpass", TcpassCouponScraper())
     items = beitun + econ + stores
 
     tz = timezone(timedelta(hours=8))
@@ -366,6 +376,9 @@ html,body{margin:0;padding:0;}
     });
     storeCount.textContent = list.length + ' / ' + stores.length + ' 家';
     ticketEmpty.hidden = list.length !== 0;
+    ticketEmpty.textContent = stores.length === 0
+      ? '店家優惠資料本週暫時無法取得,晚點再回來看看。'
+      : '沒有符合的店家,換個關鍵字試試。';
   }
   renderStores(stores);
 
