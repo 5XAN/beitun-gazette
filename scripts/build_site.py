@@ -273,35 +273,40 @@ html,body{margin:0;padding:0;}
     <section class="lede">
       <p class="section-label">本期焦點</p>
       <div class="lede-grid" id="ledeGrid"></div>
-      <p class="intro">整理自北屯區公所公告、台中通北屯特約店家與市府補助專區,只留下真的跟街坊生活有關的項目 —— 不是一般市政新聞轉貼。以下分成「店家優惠」跟「政策好康」兩個版面,可以直接搜尋店名或內容。</p>
+      <p class="intro">整理自北屯區公所公告、台中通北屯特約店家與市府補助專區,只留下真的跟街坊生活有關的項目 —— 不是一般市政新聞轉貼。分成「居民福利」跟「商家企業補助」兩大類,分類是依標題關鍵字自動判斷,少數項目可能不夠精確。</p>
     </section>
 
-    <section id="storeSection">
-      <p class="section-label">店家優惠版</p>
-      <div class="toolbar">
-        <input type="search" id="storeSearch" placeholder="搜尋店名或優惠內容,例如：咖啡、9折、東山" aria-label="搜尋店家優惠">
-        <span class="count" id="storeCount"></span>
+    <section id="residentSection">
+      <p class="section-label">居民福利版</p>
+
+      <div class="policy-group">
+        <h4>消費優惠 · 店家折扣</h4>
+        <div class="toolbar">
+          <input type="search" id="storeSearch" placeholder="搜尋店名或優惠內容,例如：咖啡、9折、東山" aria-label="搜尋店家優惠">
+          <span class="count" id="storeCount"></span>
+        </div>
+        <div class="ticket-grid" id="ticketGrid"></div>
+        <p class="empty-note" id="ticketEmpty" hidden>沒有符合的店家,換個關鍵字試試。</p>
       </div>
-      <div class="ticket-grid" id="ticketGrid"></div>
-      <p class="empty-note" id="ticketEmpty" hidden>沒有符合的店家,換個關鍵字試試。</p>
+
+      <div class="policy-group" style="margin-top:32px;">
+        <h4>生活補助 · 津貼與福利</h4>
+        <ul class="policy-list" id="residentPolicyList"></ul>
+      </div>
     </section>
 
-    <section id="policySection" style="margin-top:40px;">
-      <p class="section-label">政策好康版</p>
+    <section id="businessSection" style="margin-top:40px;">
+      <p class="section-label">商家企業補助版</p>
       <div class="policy-group">
-        <h4>北屯限定 · 區公所公告</h4>
-        <ul class="policy-list" id="policyBeitun"></ul>
-      </div>
-      <div class="policy-group">
-        <h4>全市適用 · 經濟發展局補助</h4>
-        <ul class="policy-list" id="policyEcon"></ul>
+        <h4>給店家、公司與團體的獎勵/補助</h4>
+        <ul class="policy-list" id="businessPolicyList"></ul>
       </div>
     </section>
 
     <footer class="colophon">
       <div class="cols">
         <span>資料來源：臺中市北屯區公所公告、台中通店家優惠(北屯)、臺中市政府經濟發展局補助專區</span>
-        <span>每週一早上自動重新爬取更新,由 GitHub Actions 排程執行。</span>
+        <span>每週一早上自動重新爬取更新,由 GitHub Actions 排程執行。「居民福利/商家企業補助」為關鍵字自動分類,僅供參考。</span>
       </div>
       <div class="cols">
         <span>由好康資料爬蟲整理製作</span>
@@ -320,10 +325,31 @@ html,body{margin:0;padding:0;}
   var stores = items.filter(function(i){ return i.source === 'tcpass'; });
   var beitun = items.filter(function(i){ return i.source === 'beitun_office'; });
   var econ = items.filter(function(i){ return i.source === 'econ_subsidy'; });
+  var policyItems = beitun.concat(econ);
+
+  // ---- 居民福利 / 商家企業補助 自動分類 ----
+  // 依標題關鍵字判斷,店家優惠(消費者可直接使用)一律算居民福利;
+  // 政策類項目先比對關鍵字,比對不到才依來源預設(區公所→居民、經發局→商家)。
+  var RESIDENT_KEYWORDS = ['家用','弱勢家庭','家庭','禮金','津貼','獎學金','學生','子女','托育',
+    '照顧','無障礙','用戶','市民','居民','敬老','身心障礙','低收入戶','中低收入','住宅','好康'];
+  var BUSINESS_KEYWORDS = ['商圈','商店街','商場','產業發展','會展','地方產業','創新研發','SBIR',
+    '協會','基金會','合作社','法人','廠商','事業','企業','審查申請流程','契約範本','低碳認證','產銷履歷','公司'];
+
+  function classify(item){
+    if (item.source === 'tcpass') return 'resident';
+    var t = item.title;
+    if (RESIDENT_KEYWORDS.some(function(k){ return t.indexOf(k) !== -1; })) return 'resident';
+    if (BUSINESS_KEYWORDS.some(function(k){ return t.indexOf(k) !== -1; })) return 'business';
+    return item.source === 'econ_subsidy' ? 'business' : 'resident';
+  }
+
+  var residentPolicy = policyItems.filter(function(i){ return classify(i) === 'resident'; });
+  var businessPolicy = policyItems.filter(function(i){ return classify(i) === 'business'; });
 
   document.getElementById('metaSnapshot').textContent = '資料擷取於 ' + SNAPSHOT;
   document.getElementById('metaStore').textContent = stores.length + ' 家北屯特約店家';
-  document.getElementById('metaPolicy').textContent = (beitun.length + econ.length) + ' 則政策好康';
+  document.getElementById('metaPolicy').textContent =
+    residentPolicy.length + ' 則居民福利 · ' + businessPolicy.length + ' 則商家企業補助';
 
   function fmtDate(s){ return s ? s.replace(/-/g,'/') : ''; }
 
@@ -394,14 +420,20 @@ html,body{margin:0;padding:0;}
     var ul = document.getElementById(elId);
     list.forEach(function(p){
       var li = document.createElement('li');
+      var scopeLabel = p.source === 'beitun_office' ? '北屯限定' : '全市';
+      var scopeClass = p.source === 'beitun_office' ? 'gold' : 'teal';
       li.innerHTML =
         '<span class="p-date">' + fmtDate(p.published_at) + '</span>' +
-        '<a href="' + p.url + '" target="_blank" rel="noopener">' + p.title + '</a>';
+        '<a href="' + p.url + '" target="_blank" rel="noopener">' +
+          '<span class="stamp ' + scopeClass + '" style="margin-right:8px;vertical-align:2px;">' +
+            '<span class="stamp-inner">' + scopeLabel + '</span></span>' +
+          p.title +
+        '</a>';
       ul.appendChild(li);
     });
   }
-  renderPolicy(beitun, 'policyBeitun');
-  renderPolicy(econ, 'policyEcon');
+  renderPolicy(residentPolicy, 'residentPolicyList');
+  renderPolicy(businessPolicy, 'businessPolicyList');
 })();
 </script>
 </body>
