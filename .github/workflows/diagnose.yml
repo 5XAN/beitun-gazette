@@ -1,0 +1,39 @@
+name: Diagnose tcpass block
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Runner egress IP + geo
+        run: |
+          curl -s https://ipinfo.io/json || true
+
+      - name: Verbose curl against tcpass (the blocked one)
+        run: |
+          curl -v -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
+            "https://tcpass.taichung.gov.tw/coupon/index" -o /tmp/tcpass_body.html 2>&1 | head -100
+          echo "----- body head -----"
+          head -c 2000 /tmp/tcpass_body.html || true
+
+      - name: Verbose curl against beitun office (works fine)
+        run: |
+          curl -v -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
+            "https://www.beitun.taichung.gov.tw/832030/Lpsimplelist" -o /tmp/beitun_body.html 2>&1 | head -60
+          echo "----- body head -----"
+          head -c 500 /tmp/beitun_body.html || true
+
+      - name: Verbose curl against economic bureau (works fine)
+        run: |
+          curl -v -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
+            "https://www.economic.taichung.gov.tw/41064/Lpsimplelist" -o /tmp/econ_body.html 2>&1 | head -60
+
+      - name: Retry tcpass without custom User-Agent
+        run: |
+          curl -sv "https://tcpass.taichung.gov.tw/coupon/index" -o /tmp/tcpass_body2.html 2>&1 | head -60
+
+      - name: Retry tcpass main domain root
+        run: |
+          curl -sv "https://tcpass.taichung.gov.tw/" -o /tmp/tcpass_root.html 2>&1 | head -60
